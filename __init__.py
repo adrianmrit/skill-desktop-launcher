@@ -15,45 +15,46 @@
 # You should have received a copy of the GNU General Public License
 # along with Mycroft Core.  If not, see <http://www.gnu.org/licenses/>.
 
-
-import sys
 import webbrowser
 import subprocess
+import os
 
 from adapt.intent import IntentBuilder
 from adapt.tools.text.tokenizer import EnglishTokenizer
-from os.path import dirname, join
 
 from mycroft.skills.core import MycroftSkill
 from mycroft.util.log import getLogger
-if sys.version_info[0] < 3:
-    from urllib import quote
-    try:
-        import gio
-    except ModuleNotFoundError:
-        sys.path.append("/usr/lib/python2.7/dist-packages")
-        import gio
-else:
-    from urllib.parse import quote
-    from gi.repository import Gio as gio
+from urllib.parse import quote
+
+path = os.path.abspath(__file__)
+dir_path = os.path.dirname(path)
 
 logger = getLogger(__name__)
 __author__ = 'seanfitz'
+__edited_by__ = 'adrianmrit'
 
 IFL_TEMPLATE = "http://www.google.com/search?&sourceid=navclient&btnI=I&q=%s"
+
+
+class App():
+    def __init__(self, command):
+        self.command = command
+
+    def launch(self):
+        os.system(self.command + b'&')
 
 
 class DesktopLauncherSkill(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self, "DesktopLauncherSkill")
-        self.appmap = {}
+        self.appmap = {
+        }
 
     def initialize(self):
         tokenizer = EnglishTokenizer()
-
-        for app in gio.app_info_get_all():
-            name = app.get_name().lower()
-            entry = [app]
+        for app_command in subprocess.check_output(['{}/get_apps'.format(dir_path)]).splitlines():
+            name = app_command.decode('ascii').lower()
+            entry = [App(app_command)]
             tokenized_name = tokenizer.tokenize(name)[0]
 
             if name in self.appmap:
@@ -97,7 +98,7 @@ class DesktopLauncherSkill(MycroftSkill):
 
     def handle_close_desktop_app(self, message):
         app_name = message.data.get('Application')
-        subprocess.call( [ "killall", "-9", app_name ] )
+        subprocess.call(["killall", "-9", app_name])
 
     def handle_launch_website(self, message):
         site = message.data.get("Website")
